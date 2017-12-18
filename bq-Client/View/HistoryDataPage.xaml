@@ -1,0 +1,161 @@
+﻿<UserControl x:Class="bq_Client.View.HistoryDataPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:dxui="http://schemas.devexpress.com/winfx/2008/xaml/windowsui"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxd="http://schemas.devexpress.com/winfx/2008/xaml/docking"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:vm="clr-namespace:bq_Client.ViewModels"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:view="clr-namespace:bq_Client.View"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dxc="http://schemas.devexpress.com/winfx/2008/xaml/charts" 
+             mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1000" Loaded="UserControl_Loaded" KeyDown="UserControl_KeyDown" >
+    <UserControl.DataContext>
+        <vm:HistoryViewModel/>
+    </UserControl.DataContext>
+    <UserControl.CommandBindings>
+        <CommandBinding Command="view:HistoryDataPage.ReadHistoryData" CanExecute="ReadHistoryData_CanExecute" Executed="ReadHistoryData_Executed"/>
+        <CommandBinding Command="view:HistoryDataPage.ExportData" CanExecute="ExportData_CanExecute" Executed="ExportData_Executed"/>       
+    </UserControl.CommandBindings>
+    <dxui:PageAdornerControl Padding="-15,-50,8,-10" Header="数据分析">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Margin="45,0,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Grid  Margin="20,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox Grid.Column="0" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=TypeComo}"
+                          x:Name="HistoryTypeComo" Height="25" Width="80" SelectionChanged="TypeComo_SelectionChanged"/>
+                    
+                    <ComboBox Grid.Column="2" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=TypeComo}"
+                          x:Name="MasterComo" Height="25" Width="70" SelectionChanged="MasterOrPack_SelectionChanged" SelectedItem="{Binding MasterIndex, Mode=OneWayToSource}"/>
+                    
+                    <ComboBox Grid.Column="4" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=TypeComo}"
+                          x:Name="PackComo" Height="25" Width="70" SelectionChanged="MasterOrPack_SelectionChanged" SelectedItem="{Binding  PackIndex, Mode=OneWayToSource}"/>
+                    
+                    <dx:SimpleButton Grid.Column="6" Content="紧急操作" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=Operation}" 
+                                 Click="Operate_Click" FontSize="15"/>
+                    <dx:SimpleButton Grid.Column="8" Content="重新连接" 
+                                 Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=Reconnect}"
+                                 Click="ReConnect_Click" FontSize="15"/>                   
+                </Grid>
+            </StackPanel>
+            <DockPanel Grid.Row="1">
+                <dxb:ToolBarControl DockPanel.Dock="Top" Caption="operation" AllowCustomizationMenu="False" AllowHide="False" AllowQuickCustomization="False" AllowRename="False" FontFamily="Tahoma">
+                    <dxb:BarStaticItem Content="开始时间："/>
+                    <dxb:BarEditItem EditWidth="150" Hint="开始时间" EditValue="{Binding StartTime, Mode=TwoWay}">
+                        <dxb:BarEditItem.EditSettings>
+                            <dxe:DateEditSettings Name="bStartDate" Mask="yyyy/MM/dd HH:mm:ss" MaskUseAsDisplayFormat="True">
+                                <dxe:DateEditSettings.StyleSettings>
+                                    <dxe:DateEditPickerStyleSettings />
+                                </dxe:DateEditSettings.StyleSettings>
+                            </dxe:DateEditSettings>
+                        </dxb:BarEditItem.EditSettings>
+                    </dxb:BarEditItem>
+
+                    <dxb:BarStaticItem Content="结束时间："/>
+                    <dxb:BarEditItem EditWidth="150" Hint="结束时间" EditValue="{Binding EndTime, Mode=TwoWay}">
+                        <dxb:BarEditItem.EditSettings>
+                            <dxe:DateEditSettings Name="bEndDate" Mask="yyyy/MM/dd HH:mm:ss" MaskUseAsDisplayFormat="True" >
+                                <dxe:DateEditSettings.StyleSettings>
+                                    <dxe:DateEditPickerStyleSettings />
+                                </dxe:DateEditSettings.StyleSettings>
+                            </dxe:DateEditSettings>
+                        </dxb:BarEditItem.EditSettings>
+                    </dxb:BarEditItem>
+
+                    <dxb:BarStaticItem Content="数据范围："/>
+                    <dxb:BarEditItem Name="bDataRange" EditWidth="80" Hint="数据范围" EditValue="{Binding DataRange, Converter={StaticResource rdc}, Mode=TwoWay}">
+                        <dxb:BarEditItem.EditSettings>
+                            <dxe:ComboBoxEditSettings x:Name="DataRange"></dxe:ComboBoxEditSettings>
+                        </dxb:BarEditItem.EditSettings>
+                    </dxb:BarEditItem>
+                    <dxb:BarStaticItem Content="数据类型："/>
+                    <dxb:BarEditItem Name="aDataType" EditWidth="100" Hint="数据类型" EditValue="{Binding DataTypeChart, Mode=TwoWay}">
+                        <dxb:BarEditItem.EditSettings>
+                            <dxe:ComboBoxEditSettings x:Name="TypeComobox"></dxe:ComboBoxEditSettings>
+                        </dxb:BarEditItem.EditSettings>
+                    </dxb:BarEditItem>
+
+                    <dxb:BarButtonItem Content="读取数据"
+                                       Alignment="Default" BarItemDisplayMode="ContentAndGlyph" Command="view:HistoryDataPage.ReadHistoryData" Glyph="{dx:DXImage Image=Download_16x16.png}"/>
+
+                    <dxb:BarButtonItem Content="保存数据"
+                                       Alignment="Default" BarItemDisplayMode="ContentAndGlyph" Command="view:HistoryDataPage.ExportData" Glyph="{dx:DXImage Image=ExportToCSV_16x16.png}"/>                   
+                </dxb:ToolBarControl>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <dxc:ChartControl Margin="2" Grid.Row="0">
+                        <dxc:ChartControl.Titles>
+                            <dxc:Title Dock="Top" HorizontalAlignment="Center" Content="{Binding DataTypeChart, Mode=OneWay}" />
+                        </dxc:ChartControl.Titles>
+                        <dxc:ChartControl.Legend>
+                            <dxc:Legend HorizontalPosition="Right" VerticalPosition="Top" Foreground="LightGreen" />
+                        </dxc:ChartControl.Legend>
+                        <dxc:XYDiagram2D EnableAxisXNavigation="True">
+                            <dxc:XYDiagram2D.AxisX>
+                                <dxc:AxisX2D >
+                                    <dxc:AxisX2D.DateTimeScaleOptions>
+                                        <dxc:ContinuousDateTimeScaleOptions/>
+                                    </dxc:AxisX2D.DateTimeScaleOptions>
+                                    <dxc:AxisX2D.Label>
+                                        <dxc:AxisLabel TextPattern="{}{A:yyyy/MM/dd HH:mm:ss}" />
+                                    </dxc:AxisX2D.Label>
+                                    <dxc:AxisX2D.WholeRange>
+                                        <dxc:Range/>
+                                    </dxc:AxisX2D.WholeRange>
+                                </dxc:AxisX2D>
+                            </dxc:XYDiagram2D.AxisX>
+                            <dxc:XYDiagram2D.AxisY>
+                                <dxc:AxisY2D Interlaced="True">
+                                    <dxc:AxisY2D.WholeRange>
+                                        <dxc:Range dxc:AxisY2D.AlwaysShowZeroLevel="False"/>
+                                    </dxc:AxisY2D.WholeRange>
+                                </dxc:AxisY2D>
+                            </dxc:XYDiagram2D.AxisY>
+                            <dxc:XYDiagram2D.Series>
+                                <dxc:LineSeries2D x:Name="LineSeries2DAnalysis"  Foreground="Azure" ArgumentDataMember="ValueDate" ValueDataMember="Value"
+                                              ArgumentScaleType="DateTime" MarkerVisible="False" DisplayName="{Binding DataTypeChart, Mode=OneWay}" CrosshairLabelPattern="{}{A:yyyy/MM/dd hh:mm:ss}: {V:F2}">
+                                    <dxc:LineSeries2D.LineStyle>
+                                        <dxc:LineStyle Thickness="2"/>
+                                    </dxc:LineSeries2D.LineStyle>
+                                </dxc:LineSeries2D>
+                            </dxc:XYDiagram2D.Series>
+                        </dxc:XYDiagram2D>
+                    </dxc:ChartControl>                    
+
+                    <GridSplitter Grid.Row="1" Style="{StaticResource  HorGridSplitterStyle}" HorizontalAlignment="Stretch" />
+
+                    <dxg:GridControl x:Name="HistotyGrid" ShowBorder="False" Grid.Row="2">
+                        <dxg:GridControl.View>
+                            <dxg:TableView  Style="{StaticResource TableViewStyle}" ShowDataNavigator="True" AutoWidth="False">
+                            </dxg:TableView>
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+                </Grid>
+            </DockPanel>
+        </Grid>
+
+    </dxui:PageAdornerControl>
+</UserControl>

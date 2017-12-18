@@ -1,0 +1,130 @@
+﻿<UserControl
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:dxui="http://schemas.devexpress.com/winfx/2008/xaml/windowsui"
+    xmlns:dxwuin="http://schemas.devexpress.com/winfx/2008/xaml/windowsui/navigation"
+    xmlns:system="clr-namespace:System;assembly=mscorlib"
+    xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+    xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
+    xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+    xmlns:vm="clr-namespace:bq_Client.ViewModels"
+    xmlns:view="clr-namespace:bq_Client.View"
+    xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core" 
+    x:Class="bq_Client.View.MasterItemsPage"
+    mc:Ignorable="d" Loaded="UserControl_Loaded"
+    d:DesignHeight="300" d:DesignWidth="800">
+
+    <UserControl.DataContext>
+        <vm:MasterItemsViewModel/>
+    </UserControl.DataContext>
+
+
+    <dxui:PageAdornerControl Padding="0,-50,8,-10" Header="实时数据">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Margin="45,0,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Grid  Margin="20,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="50" MinWidth="30" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MaxWidth="25" MinWidth="10" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Style="{StaticResource ModuleLinkButton}" Grid.Column="0" Content="数据分析" Command="{Binding NavigateCommand}" CommandParameter="HistoryDataPage" FontSize="15"/>
+
+                    <dx:SimpleButton Grid.Column="2" Content="紧急操作" IsEnabled="{Binding IsEnable}" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=Operation}" 
+                                 Click="Operate_Click" FontSize="15"/>
+                    <dx:SimpleButton Grid.Column="4" Content="重新连接" 
+                                 Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=Reconnect}"
+                                 Click="ReConnect_Click" FontSize="15"/>
+                    <dxe:CheckEdit x:Name="RefreshCheck" Grid.Column="6" IsEnabled="{Binding IsEnable}" ToolTip="{Binding AutoRenovate,Mode=OneWay, Converter={StaticResource rtc}, ConverterParameter=RefreshCheck, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,0"
+                                               IsChecked="{Binding AutoRenovate,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="25" VerticalAlignment="Center" Visibility="{Binding OffConnect, Converter={StaticResource rvc}, ConverterParameter=AutoRefresh}"
+                                                   Style="{StaticResource slider}" Width="113"/>
+                </Grid>
+            </StackPanel>
+            <dxdo:DockLayoutManager Grid.Row="1">
+                <dxdo:DockLayoutManager.AutoHideGroups>
+                    <dxdo:AutoHideGroup DockType="Right" AllowExpand="False">
+                        <dxdo:LayoutPanel Caption="设置" AutoHideExpandState="Visible" AllowSizing="False"  AllowClose="False" MinWidth="350">
+                            <Grid Width="300">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Margin="0,20,0,20" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock Text="刷新周期："/>
+                                    <Grid Margin="0,-3,0,0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                        </Grid.RowDefinitions>
+                                        <Grid MaxWidth="420">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding ElementName=editor, Path=Minimum}" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,0,0" />
+                                            <ContentControl Margin="5,0,5,0" Template="{StaticResource rangeEditorPanel}" Grid.Column="1">
+                                                <dxe:TrackBarEdit x:Name="editor" SmallStep="1" LargeStep="1" Orientation="Horizontal" Width="110" Height="20" Margin="0,0,0,0"
+                                                          Value="{Binding RenovateInterval, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="1" Maximum="10" TickFrequency="1" />
+                                            </ContentControl>
+                                            <TextBlock Text="{Binding ElementName=editor, Path=Maximum}" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,0" />
+                                        </Grid>
+                                        <TextBlock Grid.Row="1" Text="{Binding ElementName=editor, Path=Value}" HorizontalAlignment="Center" />
+                                    </Grid>
+                                </StackPanel>
+                                <ListBox x:Name="custList"  Grid.Row="1" SelectedIndex="{Binding CustSelectIndex}"  SelectedItem="{Binding CustSelectItem, Mode=OneWayToSource}"
+                                     BorderThickness="0" Margin="2">
+                                    <ListBox.Resources>
+                                        <Style TargetType="{x:Type ListBoxItem}">
+                                            <Setter Property="Margin" Value="5"/>
+                                            <Setter Property="BorderBrush" Value="Gray"/>
+                                            <Setter Property="BorderThickness" Value="1"></Setter>
+                                            <Setter Property="Template" Value="{StaticResource CustListControlTemplate}">
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.Resources>
+                                </ListBox>
+                            </Grid>
+                        </dxdo:LayoutPanel>
+                    </dxdo:AutoHideGroup>
+                </dxdo:DockLayoutManager.AutoHideGroups>
+                <dxdo:LayoutGroup>
+                    <dxdo:LayoutPanel ShowBorder="False"  ShowCaption="False" AllowClose="False" AllowHide="False">
+                        <dxlc:FlowLayoutControl  x:Name="FlC" ItemsSource="{Binding MasterItems}" AnimateItemMaximization="True" 
+                                    AllowItemMoving="True"  ShowLayerSeparators="False" Padding="0,18,0,0">
+                            <dxlc:FlowLayoutControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Template="{StaticResource ButtonMasterDataTemplate}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="IsEnabled" Value="True"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Path=Status}" Value="0xff">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </DataTemplate>
+                            </dxlc:FlowLayoutControl.ItemTemplate>
+                        </dxlc:FlowLayoutControl>
+                    </dxdo:LayoutPanel>
+                </dxdo:LayoutGroup>
+            </dxdo:DockLayoutManager>
+        </Grid>
+
+    </dxui:PageAdornerControl>
+</UserControl>

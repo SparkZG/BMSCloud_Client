@@ -1,0 +1,66 @@
+﻿<dx:DXWindow
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dxui="http://schemas.devexpress.com/winfx/2008/xaml/windowsui"
+        xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+        xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+        xmlns:view="clr-namespace:bq_Client.View"
+        xmlns:vm="clr-namespace:bq_Client.ViewModels"
+        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"     
+        xmlns:dxwuin="http://schemas.devexpress.com/winfx/2008/xaml/windowsui/navigation"
+        xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+        xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+        x:Class="bq_Client.MainWindow"
+        Title="bq_Client" WindowStartupLocation="CenterScreen" 
+        Height="750" Width="1120" MinHeight="450" MinWidth="800"  Icon="client.ico"
+        Loaded="MainWindow_Loaded" Closed="MainWindow_Closed" ShowIcon="False" ShowTitle="False">
+
+    <dx:DXWindow.DataContext>
+        <vm:MainViewModel />
+    </dx:DXWindow.DataContext>
+    <dxmvvm:Interaction.Triggers>
+        <dxmvvm:EventToCommand EventName="Loaded" Command="{Binding OnViewLoadedCommand}" />
+    </dxmvvm:Interaction.Triggers>
+    <dxmvvm:Interaction.Behaviors>
+        <dxwuin:FrameNavigationService Frame="{Binding ElementName=NavigationRoot}" />
+        <dx:DXSplashScreenService SplashScreenType="{x:Type view:WaitWindow}" />
+    </dxmvvm:Interaction.Behaviors>
+    <DockPanel LastChildFill="True">
+        <Grid Margin="30,0,25,0"  DockPanel.Dock="Bottom" DataContext="{Binding CustSelectItem}">
+            <Grid.Resources>
+                <Style TargetType="Ellipse">
+                    <Setter Property="Fill" Value="DimGray"/>
+                    <Setter Property="Stroke" Value="Gray"/>
+                    <Setter Property="ToolTip" Value="离线"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Path=CustStatus}" Value="1">
+                            <Setter Property="Fill" Value="#FF71EB5B"/>
+                            <Setter Property="Stroke" Value="Green"/>
+                            <Setter Property="ToolTip" Value="在线"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="当前查看："/>
+                <TextBlock Text="{Binding CustName}"></TextBlock>
+                <TextBlock Text="故障状况：" Margin="20,0,0,0"/>
+                <TextBlock Text="{Binding CustFault, Converter={StaticResource rac}, ConverterParameter=StrStatus}" ></TextBlock>
+                <TextBlock Text="主机数量：" Margin="20,0,0,0" />
+                <TextBlock Text="{Binding GroupNum}"></TextBlock>
+                <TextBlock Text="Pack数量：" Margin="20,0,0,0"/>
+                <TextBlock Text="{Binding PackNum}" ></TextBlock>               
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">                
+                <TextBlock Text="状态："/>
+                <Ellipse   Width="15" Height="15" VerticalAlignment="Center" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>        
+        <dxui:NavigationFrame x:Name="NavigationRoot" AnimationType="SlideHorizontal"  BackNavigationMode="PreviousScreen" />        
+    </DockPanel>   
+
+</dx:DXWindow>
