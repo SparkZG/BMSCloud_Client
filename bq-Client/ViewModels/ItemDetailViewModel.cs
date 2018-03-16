@@ -20,6 +20,7 @@ using System.Globalization;
 using System.Collections.ObjectModel;
 using DevExpress.Xpf.Grid;
 using System.Windows;
+using bq_Client.DataFactory;
 
 namespace bq_Client.ViewModels
 {
@@ -421,7 +422,6 @@ namespace bq_Client.ViewModels
                 OffConnect = socketClient.OffLine;
                 //开启自动刷新
                 AutoRenovate = true;
-                ItemDetail_Tick(this, null);
             }
             else
             {
@@ -433,7 +433,46 @@ namespace bq_Client.ViewModels
         {
             if (socketClient != null)
             {
-                BLLCommon.SendToServer(CS_AskReply.ClientAskPack, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(packIndex), BitConverter.GetBytes(1));
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskPack, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(packIndex), BitConverter.GetBytes(1));
+                string TableName = "packdata" + DateTime.Now.ToString("yyyyMMdd");
+                string cmdText = string.Format("SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} order by id desc limit {4};",
+                    TableName, Properties.Settings.Default.DTUIndex, packGroupIndex, packIndex, 1);
+                DataTable dtData = new DataTable();
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    AutoRenovate = false;
+                    equalNullNum = 0;
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (dtData.Rows.Count == 0)
+                {
+                    equalNullNum++;
+                    if (equalNullNum >= 2)
+                    {
+                        AutoRenovate = false;
+                        equalNullNum = 0;
+                        DXMessageBox.Show("当前Pack没有数据，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return;
+                }
+                equalNullNum = 0;
+                //使用ui元素
+                try
+                {
+                    RenovateData(dtData.Rows[0]);
+                }
+                catch (Exception)
+                {
+                    AutoRenovate = false;
+                    equalNullNum = 0;
+                    DXMessageBox.Show("数据异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
             }
         }
 
@@ -578,7 +617,8 @@ namespace bq_Client.ViewModels
             DataTime = dr[1].ToString().Trim();
         }
 
-        public void FuncAction(object dtObject, byte eventType)
+
+        /*public void FuncAction(object dtObject, byte eventType)
         {
             if (eventType != CS_AskReply.ClientReplyPack)
             {
@@ -608,7 +648,7 @@ namespace bq_Client.ViewModels
                 equalNullNum = 0;
                 DXMessageBox.Show("数据异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
+        }*/
 
         #region INavigationAware Members
         public void NavigatedFrom(NavigationEventArgs e)
@@ -620,8 +660,8 @@ namespace bq_Client.ViewModels
         public void NavigatedTo(NavigationEventArgs e)
         {
             LoadState(e.Parameter);
-            modelIndex = 3;
-            FuncDoAction = new DeleFunc2(FuncAction);
+            //modelIndex = 3;
+            //FuncDoAction = new DeleFunc2(FuncAction);
             ExcuteTimer.Tick += new EventHandler(ItemDetail_Tick);
             FuncRefershOffLine = sign => OffConnect = (bool)sign;
             LoadDataList();
@@ -633,7 +673,7 @@ namespace bq_Client.ViewModels
             {
                 ExcuteTimer.Stop();
             }
-            FuncDoAction = null;
+            //FuncDoAction = null;
             FuncRefershOffLine = null;
             ExcuteTimer.Tick -= new EventHandler(ItemDetail_Tick);
         }

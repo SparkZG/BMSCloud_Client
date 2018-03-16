@@ -20,6 +20,7 @@ using System.Globalization;
 using System.Collections.ObjectModel;
 using DevExpress.Xpf.Grid;
 using System.Windows;
+using bq_Client.DataFactory;
 
 namespace bq_Client.ViewModels
 {
@@ -189,25 +190,119 @@ namespace bq_Client.ViewModels
         {
             if (socketClient != null)
             {
-                List<byte> SendTimeList = new List<byte> { };
-                SendTimeList.AddRange(BitConverter.GetBytes(DataRange));
-                SendTimeList.AddRange(BLLCommon.DateTimeToBytes(StartTime));
-                SendTimeList.AddRange(BLLCommon.DateTimeToBytes(EndTime));
-                if (_selectIndex == 0)
+                string TableName = "";
+                string cmdText = "";
+                byte eventType;
+                DataTable dtTableName = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, "SHOW tables;", TableName, null).Tables[0];
+                List<string> listTN = new List<string> { };
+                foreach (DataRow dr in dtTableName.Rows)
+                {
+                    listTN.Add(dr[0].ToString());
+                }
 
-                    BLLCommon.SendToServer(CS_AskReply.ClientAskGroup, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), 0xff, SendTimeList.ToArray());
+                if (_selectIndex == 1)
+                {
+                    string tableName = BLLCommon.GetPackTableName(ref TableName, StartTime, EndTime, Properties.Settings.Default.DTUIndex, (int)MasterIndex - 1, (int)packIndex - 1, listTN.ToArray());
+                    if (tableName == null)
+                    {
+                        DXMessageBox.Show("所选日期没有数据存在！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    if (DataRange == 0)
+                    {
 
+                        cmdText = "SELECT pack_info,insert_time FROM " + tableName;
+                    }
+                    else
+                    {
+                        cmdText = string.Format("SELECT pack_info,insert_time FROM " + tableName + " limit {0}", DataRange);
+                    }
+                    eventType = CS_AskReply.ClientReplyPack;
+                }
                 else
-                    BLLCommon.SendToServer(CS_AskReply.ClientAskPack, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), Convert.ToByte((int)packIndex - 1), SendTimeList.ToArray());
+                {
+                    string tableName = BLLCommon.GetMasterTableName(ref TableName, StartTime, EndTime, Properties.Settings.Default.DTUIndex, (int)MasterIndex - 1, listTN.ToArray());
+                    if (tableName == null)
+                    {
+                        DXMessageBox.Show("所选日期没有数据存在！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    if (DataRange == 0)
+                    {
+
+                        cmdText = "SELECT group_info,insert_time FROM " + tableName;
+                    }
+                    else
+                    {
+                        cmdText = string.Format("SELECT group_info,insert_time FROM " + tableName + " limit {0}", DataRange);
+                    }
+                    eventType = CS_AskReply.ClientReplyGroup;
+                }
+
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
+                {
+                    BLLCommon.ShowWaitWindow();
+                }));
+                DataTable dtData = new DataTable();
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
+                           {
+
+                               BLLCommon.CloseWaitWindow(true);
+                           }));
+                    return;
+                }
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
+                {
+
+                    BLLCommon.CloseWaitWindow(false);
+                }));
+                if (dtData.Rows.Count >= 1)
+                {
+                    GetServerData(dtData, eventType);
+                }
+                else
+                {
+                    DXMessageBox.Show("当前查询模块没有数据，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                //List<byte> SendTimeList = new List<byte> { };
+                //SendTimeList.AddRange(BitConverter.GetBytes(DataRange));
+                //SendTimeList.AddRange(BLLCommon.DateTimeToBytes(StartTime));
+                //SendTimeList.AddRange(BLLCommon.DateTimeToBytes(EndTime));
+                //if (_selectIndex == 0)
+
+                //    BLLCommon.SendToServer(CS_AskReply.ClientAskGroup, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), 0xff, SendTimeList.ToArray());
+
+                //else
+                //    BLLCommon.SendToServer(CS_AskReply.ClientAskPack, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), Convert.ToByte((int)packIndex - 1), SendTimeList.ToArray());
             }
-            BLLCommon.ShowWaitWindow();
         }
 
         public void SendReadPackStatus()
         {
             if (socketClient != null)
             {
-                BLLCommon.SendToServer(CS_AskReply.ClientAskPackStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), Convert.ToByte((int)PackIndex - 1), BitConverter.GetBytes(1));
+                string TableName = "packs_status";
+                string cmdText = string.Format("SELECT cellNum,temperatureNum FROM {0} where cust_id={1} and group_id={2} and pack_id={3};",
+                   TableName, Properties.Settings.Default.DTUIndex, (int)MasterIndex - 1, (int)PackIndex - 1);
+                DataTable dtData = new DataTable();
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                GetServerData(dtData, CS_AskReply.ClientReplyPackStatus);
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskPackStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte((int)MasterIndex - 1), Convert.ToByte((int)PackIndex - 1), BitConverter.GetBytes(1));
             }
         }
 
@@ -261,13 +356,13 @@ namespace bq_Client.ViewModels
                     }
                     catch (Exception)
                     {
-                        errorStr = "部分数据存在异常！";                        
+                        errorStr = "部分数据存在异常！";
                         continue;
                     }
 
                     DataHistory.Rows.Add(drHistory);
                 }
-                if (errorStr!=string.Empty)
+                if (errorStr != string.Empty)
                 {
                     DXMessageBox.Show(errorStr, "提示", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -275,23 +370,22 @@ namespace bq_Client.ViewModels
             }
         }
 
-        public void FuncAction(object dtObject, byte eventType)
+        /*public void FuncAction(object dtObject, byte eventType)
         {
             DataTable dt = dtObject as DataTable;
             //使用ui元素
 
             if (dt.Rows.Count >= 1)
             {
-                BLLCommon.CloseWaitWindow(false);  
+                BLLCommon.CloseWaitWindow(false);
                 GetServerData(dt, eventType);
             }
             else
             {
-                BLLCommon.CloseWaitWindow(false);  
+                BLLCommon.CloseWaitWindow(false);
                 DXMessageBox.Show("当前查询模块没有数据，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-        }
+        }*/
 
         /// <summary>
         /// itemViewModel初始化
@@ -409,19 +503,19 @@ namespace bq_Client.ViewModels
         public void NavigatedTo(NavigationEventArgs e)
         {
             ExcuteTimerCust.Stop();
-            modelIndex = 4;
-            FuncDoAction = new DeleFunc2(FuncAction);
+            //modelIndex = 4;
+            //FuncDoAction = new DeleFunc2(FuncAction);
             FuncRefershOffLine = sign => OffConnect = (bool)sign;
             LoadDataList();
 
         }
         public void NavigatingFrom(NavigatingEventArgs e)
-        {           
+        {
             if (socketClient != null)
             {
                 ExcuteTimer.Stop();
             }
-            FuncDoAction = null;
+            //FuncDoAction = null;
             FuncRefershOffLine = null;
         }
         #endregion

@@ -20,7 +20,7 @@ using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Windows;
-
+using bq_Client.DataFactory;
 
 namespace bq_Client.ViewModels
 {
@@ -164,13 +164,108 @@ namespace bq_Client.ViewModels
         {
             if (socketClient != null)
             {
-                BLLCommon.SendToServer(CS_AskReply.ClientAskGroup, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(0xff), BitConverter.GetBytes(1));
-                Thread.Sleep(100);
-                BLLCommon.SendToServer(CS_AskReply.ClientAskPackStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(0xff), BitConverter.GetBytes(1));
+                string TableName = "groupsinfo" + DateTime.Now.ToString("yyyyMMdd");
+                string cmdText = string.Format("SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} order by id desc limit {3};",
+                    TableName, Properties.Settings.Default.DTUIndex, packGroupIndex, 1);
+                DataTable dtData = new DataTable();
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    AutoRenovate = false;
+                    equalNullNum = 0;
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (dtData.Rows.Count == 0)
+                {
+                    equalNullNum++;
+                    if (equalNullNum >= 2)
+                    {
+                        AutoRenovate = false;
+                        equalNullNum = 0;
+                        DXMessageBox.Show("当前Master没有数据，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return;
+                }
+                equalNullNum = 0;
+                //使用ui元素
+                try
+                {
+                    RenovateData(dtData.Rows[0]);
+                }
+                catch (Exception)
+                {
+                    AutoRenovate = false;
+                    equalNullNum = 0;
+                    DXMessageBox.Show("主机信息异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                
+
+                //询问PackStatus
+                TableName = "packs_status";
+                cmdText = string.Format("SELECT * FROM {0} where cust_id={1} and group_id={2};",
+                TableName, Properties.Settings.Default.DTUIndex, packGroupIndex);
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    AutoRenovate = false;
+                    equalNullNum = 0;
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (dtData.Rows.Count == 0)
+                {
+                    equalNullNum++;
+                    if (equalNullNum >= 2)
+                    {
+                        AutoRenovate = false;
+                        equalNullNum = 0;
+                        DXMessageBox.Show("当前Master获取Pack状态数据失败，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return;
+                }
+                equalNullNum = 0;
+                foreach (var item in PackItems)
+                {
+                    foreach (DataRow dr in dtData.Rows)
+                    {
+                        int _packIndex = Convert.ToInt32(dr["pack_id"]);
+                        int _packNum = item.ItemId - 1;
+                        if (_packNum == _packIndex)
+                        {
+                            item.AvaV = dr["AvaV"].ToString();
+                            item.Cycle = dr["Cycle"].ToString();
+                            item.MaxV = dr["MaxV"].ToString();
+                            item.MinV = dr["MinV"].ToString();
+                            item.RemainC = dr["RemainC"].ToString();
+                            item.SOC = dr["SOC"].ToString();
+                            item.TotalA = dr["TotalA"].ToString();
+                            item.TotalC = dr["TotalC"].ToString();
+                            item.TotalV = dr["TotalV"].ToString();
+                            item.Status = Convert.ToByte(dr["Status"]);
+                            item.CellNum = Convert.ToInt32(dr["CellNum"]);
+                            item.TemperatureNum = Convert.ToInt32(dr["TemperatureNum"]);
+                            break;
+                        }
+                        else
+                        {
+                            item.InitailData();
+                        }
+                    }
+                }
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskGroup, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(0xff), BitConverter.GetBytes(1));
+                //Thread.Sleep(100);
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskPackStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte(packGroupIndex), Convert.ToByte(0xff), BitConverter.GetBytes(1));
             }
         }
 
-        public void FuncAction(object dtObject, byte eventType)
+        /*public void FuncAction(object dtObject, byte eventType)
         {
             DataTable dt = dtObject as DataTable;
             if (dt.Rows.Count == 0)
@@ -198,7 +293,7 @@ namespace bq_Client.ViewModels
                     AutoRenovate = false;
                     equalNullNum = 0;
                     DXMessageBox.Show("主机信息异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
-                }                
+                }
             }
             else if (eventType == CS_AskReply.ClientReplyPackStatus)
             {
@@ -231,7 +326,7 @@ namespace bq_Client.ViewModels
                     }
                 }
             }
-        }
+        }*/
         private void RenovateData(DataRow dr)
         {
             byte[] arrData = BLLCommon.GetArrData(dr);
@@ -284,18 +379,18 @@ namespace bq_Client.ViewModels
         {
             IsFirst = true;
             LoadState(e.Parameter);
-            FuncDoAction = new DeleFunc2(FuncAction);
-            modelIndex = 2;
+            //FuncDoAction = new DeleFunc2(FuncAction);
+            //modelIndex = 2;
             ExcuteTimer.Tick += new EventHandler(MasterDetail_Tick);
             FuncRefershOffLine = sign => OffConnect = (bool)sign;
         }
         public void NavigatingFrom(NavigatingEventArgs e)
-        {                       
+        {
             if (socketClient != null)
             {
                 ExcuteTimer.Stop();
             }
-            FuncDoAction = null;
+            //FuncDoAction = null;
             FuncRefershOffLine = null;
             ExcuteTimer.Tick -= new EventHandler(MasterDetail_Tick);
             SampleDataSource.Instance.CurrentMasterId = SelectedItem.ItemId;

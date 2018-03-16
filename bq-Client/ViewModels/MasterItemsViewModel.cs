@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using DevExpress.Xpf.Core;
 using System.Windows;
+using bq_Client.DataFactory;
 
 
 namespace bq_Client.ViewModels
@@ -179,7 +180,7 @@ namespace bq_Client.ViewModels
             }
         }
 
-        public void FuncAction(object o, byte eventType)
+        /*public void FuncAction(object o, byte eventType)
         {
             if (eventType != CS_AskReply.ClientReplyGroupStatus)
             {
@@ -228,14 +229,69 @@ namespace bq_Client.ViewModels
                 }
             }
 
-        }
+        }*/
 
 
         private void MasterItems_Tick(object sender, EventArgs e)
         {
             if (socketClient != null)
             {
-                BLLCommon.SendToServer(CS_AskReply.ClientAskGroupStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte(0xff), Convert.ToByte(0xff), BitConverter.GetBytes(1));
+                string TableName = "groups_status";
+                string cmdText = string.Format("SELECT * FROM {0} where cust_id={1}",
+                    TableName, Properties.Settings.Default.DTUIndex);
+                DataTable dtData = new DataTable();
+                try
+                {
+                    dtData = MySqlHelper.GetDataSetByTableName(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, TableName, null).Tables[0];
+                }
+                catch (Exception)
+                {
+                    DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (dtData.Rows.Count == 0)
+                {
+                    equalNullNum++;
+                    if (equalNullNum >= 2)
+                    {
+                        AutoRenovate = false;
+                        equalNullNum = 0;
+                        DXMessageBox.Show("当前Cust没有数据，请确保DTU连接正常或者下位机工作正常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    return;
+                }
+                equalNullNum = 0;
+
+                foreach (var item in MasterItems)
+                {
+                    foreach (DataRow dr in dtData.Rows)
+                    {
+                        int _groupIndex = Convert.ToInt32(dr["group_id"]) + 1;
+
+                        if (item.ItemId == _groupIndex)
+                        {
+                            item.AvaV = dr["AvaV"].ToString();
+                            item.Cycle = dr["Cycle"].ToString();
+                            item.MaxT = dr["MaxT"].ToString();
+                            item.MaxV = dr["MaxV"].ToString();
+                            item.MinT = dr["MinT"].ToString();
+                            item.MinV = dr["MinV"].ToString();
+                            item.RemainC = dr["RemainC"].ToString();
+                            item.SOC = dr["SOC"].ToString();
+                            item.Status = Convert.ToByte(dr["Status"]);
+                            item.TotalA = dr["TotalA"].ToString();
+                            item.TotalC = dr["TotalC"].ToString();
+                            item.TotalV = dr["TotalV"].ToString();
+                            break;
+                        }
+                        else
+                        {
+                            item.InitailData();
+                        }
+                    }
+                }
+
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskGroupStatus, Properties.Settings.Default.DTUIndex, Convert.ToByte(0xff), Convert.ToByte(0xff), BitConverter.GetBytes(1));
             }
         }
 
@@ -270,9 +326,9 @@ namespace bq_Client.ViewModels
         {
             IsFirst = true;
             LoadState(e.Parameter);
-            modelIndex = 1;
+            //modelIndex = 1;
             ExcuteTimer.Tick += new EventHandler(MasterItems_Tick);
-            FuncDoAction = new DeleFunc2(FuncAction);
+            //FuncDoAction = new DeleFunc2(FuncAction);
             FuncUpdateStatus += RefreshMasterItems;
             FuncRefershOffLine = sign => OffConnect = (bool)sign;
             if (socketClient != null)
@@ -295,7 +351,7 @@ namespace bq_Client.ViewModels
             {
                 ExcuteTimer.Stop();
             }
-            FuncDoAction = null; 
+            //FuncDoAction = null; 
             ExcuteTimer.Tick -= new EventHandler(MasterItems_Tick);
             FuncUpdateStatus -= RefreshMasterItems;
             FuncRefershOffLine = null;

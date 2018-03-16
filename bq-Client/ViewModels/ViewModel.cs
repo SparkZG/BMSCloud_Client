@@ -12,6 +12,7 @@ using bq_Client.DataModel;
 using System.Data;
 using DevExpress.Xpf.Grid;
 using System.Collections.ObjectModel;
+using bq_Client.DataFactory;
 
 namespace bq_Client.ViewModels
 {
@@ -204,9 +205,9 @@ namespace bq_Client.ViewModels
 
 
         /// <summary>
-        /// 实例化主委托1
+        /// 实例化主委托1，现在不需要！！！
         /// </summary>
-        public static DeleFunc2 FuncDoAction = null;
+        //public static DeleFunc2 FuncDoAction = null;
 
         /// <summary>
         /// 实例化刷新状态栏委托
@@ -219,9 +220,9 @@ namespace bq_Client.ViewModels
         public static DeleFunc1 FuncRefershOffLine = null;
 
         /// <summary>
-        /// 用来判断当前处于哪个viewModel!1-MasterItems,2-MasterDetail,3-ItemDetail,4-HistoryDataPage,用来防止当接收数据延迟时造成的混乱
+        /// 用来判断当前处于哪个viewModel!1-MasterItems,2-MasterDetail,3-ItemDetail,4-HistoryDataPage,用来防止当接收数据延迟时造成的混乱，目前不需要！！！
         /// </summary>
-        public static int modelIndex = 1;
+        //public static int modelIndex = 1;
 
         //主定时器
         public static DispatcherTimer ExcuteTimer = new DispatcherTimer();
@@ -281,7 +282,61 @@ namespace bq_Client.ViewModels
         {
             if (socketClient != null)
             {
-                BLLCommon.SendToServer(CS_AskReply.ClientAskCust, Convert.ToByte(0xff), Convert.ToByte(0xff), Convert.ToByte(0xff), BitConverter.GetBytes(1));
+                string cmdText = "select * from customers;";
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    DataTable dtCust = new DataTable();
+                    try
+                    {
+                        dtCust = MySqlHelper.GetDataSet(MySqlHelper.GetConn(), System.Data.CommandType.Text, cmdText, null).Tables[0];
+                    }
+                    catch (Exception)
+                    {
+                        DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    foreach (DataRow item in dtCust.Rows)
+                    {
+                        CustInfoModel CIM = null;
+                        for (int i = 0; i < CustListSource.Count; i++)
+                        {
+                            if (CustListSource[i].CustId == Convert.ToInt32(item["cust_id"]))
+                            {
+                                CIM = CustListSource[i];
+                                break;
+                            }
+                        }
+
+                        if (CIM == null)
+                        {
+                            CustListSource.Add(new CustInfoModel(
+                                Convert.ToInt32(item["cust_id"]),
+                                Convert.ToInt32(item["group_num"]),
+                                Convert.ToInt32(item["pack_num"]),
+                                item["cust_name"].ToString(),
+                                item["cust_status"].ToString(),
+                                Convert.ToByte(item["cust_fault"])
+                                ));
+                        }
+                        else
+                        {
+                            CIM.CustId = Convert.ToInt32(item["cust_id"]);
+                            CIM.GroupNum = Convert.ToInt32(item["group_num"]);
+                            CIM.PackNum = Convert.ToInt32(item["pack_num"]);
+                            CIM.CustName = item["cust_name"].ToString();
+                            CIM.CustStatus = item["cust_status"].ToString();
+                            CIM.CustFault = Convert.ToByte(item["cust_fault"]);
+
+                            if (CIM.CustId == Properties.Settings.Default.DTUIndex)
+                            {
+                                //刷新当前状态栏数据                
+                                FuncUpdateStatus(CIM);
+                            }
+
+                        }
+                    }
+                });
+                //BLLCommon.SendToServer(CS_AskReply.ClientAskCust, Convert.ToByte(0xff), Convert.ToByte(0xff), Convert.ToByte(0xff), BitConverter.GetBytes(1));
             }
         }
 
@@ -302,7 +357,19 @@ namespace bq_Client.ViewModels
                     break;
                 case SocketEventType.ReceEvent:
                     byte remark = evt.remark;
-                    if (remark == CS_AskReply.ClientReplyGroup)
+                    if (remark == CS_AskReply.ServerAsk)
+                    {
+                        BLLCommon.SendToServer(CS_AskReply.ServerReply, 0xffff, 0xff, 0xff, System.Text.Encoding.ASCII.GetBytes("0n"));
+                    }
+                    else
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            BLLCommon.CloseWaitWindow(true);
+                        });
+                    }
+                    #region 与服务器之间的通信，现在直接去掉！
+                    /*if (remark == CS_AskReply.ClientReplyGroup)
                     {
                         if (modelIndex == 2 || modelIndex == 4)
                         {
@@ -341,11 +408,7 @@ namespace bq_Client.ViewModels
                                 System.Windows.Application.Current.Dispatcher.Invoke(FuncDoAction, evt.message, remark);
                             } 
                         }
-                    }
-                    else if (remark == CS_AskReply.ServerAsk)
-                    {
-                        BLLCommon.SendToServer(CS_AskReply.ServerReply, 0xffff, 0xff, 0xff, System.Text.Encoding.ASCII.GetBytes("0n"));
-                    }
+                    }                    
                     else if (remark == CS_AskReply.ClientReplyCust)
                     {
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -393,14 +456,8 @@ namespace bq_Client.ViewModels
                             }
                         });
                         
-                    }
-                    else
-                    {
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            BLLCommon.CloseWaitWindow(true);
-                        });
-                    }
+                    }*/
+                    #endregion                    
 
                     break;
                 case SocketEventType.SendEvent:

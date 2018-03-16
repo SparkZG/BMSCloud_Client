@@ -79,6 +79,97 @@ namespace bq_Client
             }
         }
 
+        public static string GetPackTableName(ref string tableName, DateTime dtStart, DateTime dtEnd, ushort cust_id, int group_id, int pack_id, params string[] arrTable)
+        {
+            if (dtStart.ToString("yyyyMMdd") == dtEnd.ToString("yyyyMMdd"))
+            {
+                if (!arrTable.Contains("packdata" + dtEnd.ToString("yyyyMMdd")))
+                {
+                    //数据库不存在此表则将TableName置为此，以便后期读取出错时重新生成！
+                    tableName = "packdata" + dtEnd.ToString("yyyyMMdd");
+                }
+                return string.Format("{0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) between '{4}' and '{5}'",
+                    "packdata" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, pack_id, dtStart.ToString("HH:mm:ss"), dtEnd.ToString("HH:mm:ss"));
+            }
+            else
+            {
+                List<DateTime> _listTime = new List<DateTime> { };
+                for (DateTime i = dtStart; i < dtEnd; i = i.AddDays(1))
+                {
+                    if (arrTable.Contains("packdata" + i.ToString("yyyyMMdd")))
+                    {
+                        _listTime.Add(i);
+                    }
+                }
+                if (_listTime.Count == 0)
+                {
+                    return null;
+                }
+                dtStart = _listTime[0];
+                //dtEnd = _listTime[_listTime.Count - 1];//2017.11.27此处没有必要给dtEnd赋值！这样会导致dtEnd的不正确
+
+                string TableName = string.Format("(SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) > '{4}'",
+                    "packdata" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, pack_id, dtStart.ToString("HH:mm:ss"));
+                DateTime dte = dtStart.AddDays(1);
+
+                for (int i = 1; i < _listTime.Count; i++)
+                {
+                    TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3}",
+                        "packdata" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id, pack_id);
+                }
+
+
+                TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) < '{4}'" + ") AS T",
+                    "packdata" + dtEnd.ToString("yyyyMMdd"), cust_id, group_id, pack_id, dtEnd.ToString("HH:mm:ss"));
+                return TableName;
+            }
+        }
+        public static string GetMasterTableName(ref string tableName, DateTime dtStart, DateTime dtEnd, ushort cust_id, int group_id, params string[] arrTable)
+        {
+            if (dtStart.ToString("yyyyMMdd") == dtEnd.ToString("yyyyMMdd"))
+            {
+                if (!arrTable.Contains("groupsinfo" + dtEnd.ToString("yyyyMMdd")))
+                {
+                    //数据库不存在此表则将TableName置为此，以便后期读取出错时重新生成！
+                    tableName = "groupsinfo" + dtEnd.ToString("yyyyMMdd");
+                }
+                return string.Format("{0} where cust_id={1} and group_id={2} and time(insert_time) between '{3}' and '{4}'",
+                    "groupsinfo" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, dtStart.ToString("HH:mm:ss"), dtEnd.ToString("HH:mm:ss"));
+            }
+            else
+            {
+                List<DateTime> _listTime = new List<DateTime> { };
+                for (DateTime i = dtStart; i < dtEnd; i = i.AddDays(1))
+                {
+                    if (arrTable.Contains("groupsinfo" + i.ToString("yyyyMMdd")))
+                    {
+                        _listTime.Add(i);
+                    }
+                }
+                if (_listTime.Count == 0)
+                {
+                    return null;
+                }
+                dtStart = _listTime[0];
+                //dtEnd = _listTime[_listTime.Count - 1];//2017.11.27此处没有必要给dtEnd赋值！这样会导致dtEnd的不正确
+
+                string TableName = string.Format("(SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} and time(insert_time) > '{3}'",
+                    "groupsinfo" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, dtStart.ToString("HH:mm:ss"));
+                DateTime dte = dtStart.AddDays(1);
+
+                for (int i = 1; i < _listTime.Count; i++)
+                {
+                    TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2}",
+                        "groupsinfo" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id);
+                }
+
+
+                TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} and time(insert_time) < '{3}'" + ") AS T",
+                    "groupsinfo" + dtEnd.ToString("yyyyMMdd"), cust_id, group_id, dtEnd.ToString("HH:mm:ss"));
+                return TableName;
+            }
+        }
+
         public static DataSet ExcelToDS(string Path)
         {
             if (Path.Length <= 0)
