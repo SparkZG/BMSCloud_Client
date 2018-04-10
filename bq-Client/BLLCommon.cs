@@ -12,6 +12,7 @@ using System.Xml;
 using bq_Client.ViewModels;
 using DevExpress.Xpf.Core;
 using System.Windows;
+using System.Threading;
 
 namespace bq_Client
 {
@@ -21,6 +22,8 @@ namespace bq_Client
         /// 等待窗体
         /// </summary>
         public static View.WaitWindow ww = null;
+
+        public static Thread _ShowWindow;
 
         public static object[] dataRange = new object[] { "全部", 1000, 2000, 5000, 8000, 10000, 15000, 20000, 30000, 50000 };
 
@@ -57,26 +60,57 @@ namespace bq_Client
 
         public static void ShowWaitWindow()
         {
-            if (ww == null)
+            Action sw = new Action(delegate()
             {
-                ww = new View.WaitWindow();
-                ww.ShowDialog();
-            }
+                if (ww == null)
+                {
+                    ww = new View.WaitWindow();
+                    ww.ShowDialog();
+                }
+            });
+            _ShowWindow = new Thread(() =>
+            {
+                sw();
+            });
+            _ShowWindow.IsBackground = true;
+            _ShowWindow.SetApartmentState(ApartmentState.STA);
+            _ShowWindow.Start();
         }
         public static void CloseWaitWindow(bool IsReadFailed)
         {
-            if (ww != null)
-            {                
-                ww.CloseSplashScreen();
-                ww = null;
-                if (IsReadFailed)
-                {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        DXMessageBox.Show("读取失败", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                }
+            try
+            {
+                _ShowWindow.Abort();
+
             }
+            catch (Exception)
+            {
+
+     
+            }
+            Action sw = new Action(delegate()
+            {
+                if (ww != null)
+                {
+                    ww.CloseSplashScreen();
+                    ww = null;
+                    if (IsReadFailed)
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            DXMessageBox.Show("读取失败", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
+                        });
+                    }
+                }
+            });
+            Thread _CloseWindow = new Thread(() =>
+            {
+                sw();
+            });
+            _CloseWindow.IsBackground = true;
+            _CloseWindow.SetApartmentState(ApartmentState.STA);
+            _CloseWindow.Start();
+
         }
 
         public static string GetPackTableName(ref string tableName, DateTime dtStart, DateTime dtEnd, ushort cust_id, int group_id, int pack_id, params string[] arrTable)
@@ -105,22 +139,28 @@ namespace bq_Client
                 {
                     return null;
                 }
+
                 dtStart = _listTime[0];
-                //dtEnd = _listTime[_listTime.Count - 1];//2017.11.27此处没有必要给dtEnd赋值！这样会导致dtEnd的不正确
+                dtEnd = _listTime[_listTime.Count - 1];
 
                 string TableName = string.Format("(SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) > '{4}'",
                     "packdata" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, pack_id, dtStart.ToString("HH:mm:ss"));
-                DateTime dte = dtStart.AddDays(1);
 
-                for (int i = 1; i < _listTime.Count; i++)
+                if (_listTime.Count > 2)
                 {
-                    TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3}",
-                        "packdata" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id, pack_id);
+                    for (int i = 1; i < _listTime.Count; i++)
+                    {
+                        TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3}",
+                            "packdata" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id, pack_id);
+                    }
                 }
 
-
-                TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) < '{4}'" + ") AS T",
+                if (dtStart != dtEnd)
+                {
+                    TableName += string.Format(" UNION ALL SELECT pack_info,insert_time FROM {0} where cust_id={1} and group_id={2} and pack_id={3} and time(insert_time) < '{4}'" + ") AS T",
                     "packdata" + dtEnd.ToString("yyyyMMdd"), cust_id, group_id, pack_id, dtEnd.ToString("HH:mm:ss"));
+                }
+
                 return TableName;
             }
         }
@@ -151,21 +191,25 @@ namespace bq_Client
                     return null;
                 }
                 dtStart = _listTime[0];
-                //dtEnd = _listTime[_listTime.Count - 1];//2017.11.27此处没有必要给dtEnd赋值！这样会导致dtEnd的不正确
+                dtEnd = _listTime[_listTime.Count - 1];
 
                 string TableName = string.Format("(SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} and time(insert_time) > '{3}'",
                     "groupsinfo" + dtStart.ToString("yyyyMMdd"), cust_id, group_id, dtStart.ToString("HH:mm:ss"));
-                DateTime dte = dtStart.AddDays(1);
 
-                for (int i = 1; i < _listTime.Count; i++)
+                if (_listTime.Count > 2)
                 {
-                    TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2}",
-                        "groupsinfo" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id);
+                    for (int i = 1; i < _listTime.Count; i++)
+                    {
+                        TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2}",
+                            "groupsinfo" + _listTime[i].ToString("yyyyMMdd"), cust_id, group_id);
+                    }
                 }
 
-
-                TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} and time(insert_time) < '{3}'" + ") AS T",
-                    "groupsinfo" + dtEnd.ToString("yyyyMMdd"), cust_id, group_id, dtEnd.ToString("HH:mm:ss"));
+                if (dtStart != dtEnd)
+                {
+                    TableName += string.Format(" UNION ALL SELECT group_info,insert_time FROM {0} where cust_id={1} and group_id={2} and time(insert_time) < '{3}'" + ") AS T",
+                        "groupsinfo" + dtEnd.ToString("yyyyMMdd"), cust_id, group_id, dtEnd.ToString("HH:mm:ss"));
+                }
                 return TableName;
             }
         }

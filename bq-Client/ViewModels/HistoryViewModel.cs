@@ -239,10 +239,8 @@ namespace bq_Client.ViewModels
                     eventType = CS_AskReply.ClientReplyGroup;
                 }
 
-                System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
-                {
-                    BLLCommon.ShowWaitWindow();
-                }));
+
+                BLLCommon.ShowWaitWindow();
                 DataTable dtData = new DataTable();
                 try
                 {
@@ -251,14 +249,14 @@ namespace bq_Client.ViewModels
                 catch (Exception)
                 {
                     DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
-                    System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(delegate()
                            {
 
                                BLLCommon.CloseWaitWindow(true);
                            }));
                     return;
                 }
-                System.Windows.Application.Current.Dispatcher.Invoke(new Action(delegate()
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(delegate()
                 {
 
                     BLLCommon.CloseWaitWindow(false);
