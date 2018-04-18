@@ -60,17 +60,13 @@ namespace bq_Client
 
         public static void ShowWaitWindow()
         {
-            Action sw = new Action(delegate()
+            _ShowWindow = new Thread(() =>
             {
                 if (ww == null)
                 {
                     ww = new View.WaitWindow();
                     ww.ShowDialog();
                 }
-            });
-            _ShowWindow = new Thread(() =>
-            {
-                sw();
             });
             _ShowWindow.IsBackground = true;
             _ShowWindow.SetApartmentState(ApartmentState.STA);
@@ -81,36 +77,25 @@ namespace bq_Client
             try
             {
                 _ShowWindow.Abort();
-
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (ww != null)
+                    {
+                        ww = null;                        
+                    }
+                });
             }
             catch (Exception)
             {
 
-     
             }
-            Action sw = new Action(delegate()
+            finally
             {
-                if (ww != null)
+                if (IsReadFailed)
                 {
-                    ww.CloseSplashScreen();
-                    ww = null;
-                    if (IsReadFailed)
-                    {
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            DXMessageBox.Show("读取失败", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
-                        });
-                    }
+                    DXMessageBox.Show("读取失败", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            });
-            Thread _CloseWindow = new Thread(() =>
-            {
-                sw();
-            });
-            _CloseWindow.IsBackground = true;
-            _CloseWindow.SetApartmentState(ApartmentState.STA);
-            _CloseWindow.Start();
-
+            }
         }
 
         public static string GetPackTableName(ref string tableName, DateTime dtStart, DateTime dtEnd, ushort cust_id, int group_id, int pack_id, params string[] arrTable)

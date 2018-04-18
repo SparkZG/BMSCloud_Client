@@ -251,14 +251,12 @@ namespace bq_Client.ViewModels
                     DXMessageBox.Show("服务器连接异常！", "提示", MessageBoxButton.OK, MessageBoxImage.Error);
                     System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(delegate()
                            {
-
                                BLLCommon.CloseWaitWindow(true);
                            }));
                     return;
                 }
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(delegate()
                 {
-
                     BLLCommon.CloseWaitWindow(false);
                 }));
                 if (dtData.Rows.Count >= 1)
